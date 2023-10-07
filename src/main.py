@@ -1,47 +1,62 @@
 import cv2
 import sqlite3
 
-# Initialize the Haar Cascade classifier for face detection
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+from src.constants import HAARCASCADE_FILE_PATH, ATTENDANCE_DB_PATH
 
-# Initialize the webcam
-cap = cv2.VideoCapture(0)  # 0 represents the default webcam, you can change it to a different camera if needed
 
-# Initialize SQLite database and create a table to store user information
-conn = sqlite3.connect('attendance.db')  # Create or connect to the SQLite database
-cursor = conn.cursor()
+class FaceDetection:
+    def __init__(self):
+        self.face_cascade = cv2.CascadeClassifier(HAARCASCADE_FILE_PATH)
+        self.conn = sqlite3.connect(ATTENDANCE_DB_PATH)
+        self.cursor = self.conn.cursor()
+        self.create_user_table()
 
-# Create a users table if it doesn't exist
-cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                   name TEXT NOT NULL, 
-                   profile_image BLOB)''')
-conn.commit()
+    def create_user_table(self):
+        """
+        Create the users table in the database if it doesn't exist.
 
-while True:
-    # Capture frame-by-frame from the webcam
-    ret, frame = cap.read()
+        :return: None
+        """
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users
+            (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name TEXT NOT NULL, 
+            profile_image BLOB)
+            """
+        )
+        self.conn.commit()
 
-    # Convert the frame to grayscale for face detection
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    def detect_faces(self):
+        """
+        Detect Faces using the VideoCapture function and default webcam
 
-    # Detect faces in the frame
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        :return: None
+        """
+        cap = cv2.VideoCapture(0)
 
-    # Draw rectangles around detected faces
-    for (x, y, w, h) in faces:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        while True:
+            ret, frame = cap.read()
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-    # Display the frame with detected faces
-    cv2.imshow('Face Detection', frame)
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-    # Break the loop when the 'q' key is pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+            cv2.imshow('Face Detection', frame)
 
-# Release the webcam and close all OpenCV windows
-cap.release()
-cv2.destroyAllWindows()
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
-# Close the SQLite database connection
-conn.close()
+        cap.release()
+        cv2.destroyAllWindows()
+        self.conn.close()
+
+
+def main():
+    face_detection = FaceDetection()
+    face_detection.detect_faces()
+
+
+if __name__ == "__main__":
+    main()
