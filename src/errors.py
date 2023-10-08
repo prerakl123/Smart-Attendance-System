@@ -1,0 +1,2 @@
+class WebcamError(Exception):
+    pass
