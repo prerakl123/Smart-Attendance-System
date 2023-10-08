@@ -1,14 +1,15 @@
+from time import time
+
 import cv2
 import sqlite3
 
 from src.constants import HAARCASCADE_FILE_PATH, ATTENDANCE_DB_PATH
+from src.user_registration import VideoCapture, User
 
 
-class FaceDetection:
+class AttendanceSystem:
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier(HAARCASCADE_FILE_PATH)
-        self.conn = sqlite3.connect(ATTENDANCE_DB_PATH)
-        self.cursor = self.conn.cursor()
         self.create_user_table()
 
     def create_user_table(self):
@@ -17,7 +18,9 @@ class FaceDetection:
 
         :return: None
         """
-        self.cursor.execute(
+        conn = sqlite3.connect(ATTENDANCE_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS users
             (id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -25,7 +28,8 @@ class FaceDetection:
             profile_image BLOB)
             """
         )
-        self.conn.commit()
+        conn.commit()
+        conn.close()
 
     def detect_faces(self):
         """
@@ -50,13 +54,29 @@ class FaceDetection:
 
         cap.release()
         cv2.destroyAllWindows()
-        self.conn.close()
 
+    def main(self):
+        user_registration_choice = input("Do you want to register a new user? (yes/no): ").strip().lower()
 
-def main():
-    face_detection = FaceDetection()
-    face_detection.detect_faces()
+        if user_registration_choice == "yes":
+            name = input("Enter your name: ")
+
+            user = User(name)
+            video_capture = VideoCapture(user)
+
+            # Capture video frames and save the best image
+            s_time = time()
+            video_capture.capture_frames(duration=150)
+            print('Took', time() - s_time, 'secs')
+
+            # Save the user's profile image
+            user.save_profile_image(video_capture.best_frame)
+
+            # Release video feed and cleanup
+            video_capture.release()
 
 
 if __name__ == "__main__":
-    main()
+    attendance_system = AttendanceSystem()
+    attendance_system.detect_faces()
+    attendance_system.main()
