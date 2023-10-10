@@ -14,8 +14,9 @@ class User:
 
     def __init__(self, name):
         self.name = name
+        self.save_profile()
 
-    def save_profile_image(self, image):
+    def save_profile(self, image=None):
         """
         Save the user's profile image to the database.
 
@@ -36,13 +37,31 @@ class User:
         conn.commit()
         conn.close()
 
+    def set_profile_image(self, image=None):
+        """
+        Updates the profile image for the User
+
+        :param image: binary image data
+        :return: None
+        """
+        conn = sqlite3.connect(ATTENDANCE_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE users SET image=? WHERE user_id=?",
+            (image, self.user_id)
+        )
+
+        # Commit and Close DB connection
+        conn.commit()
+        conn.close()
+
     @classmethod
     def get_user_data(cls, user_id):
         """
         Gets the user data for the specified `user_id`.
 
-        :param user_id:
-        :return:
+        :param user_id: integer value for user ID
+        :return: a tuple containing user data
         """
         conn = sqlite3.connect(ATTENDANCE_DB_PATH)
         cursor = conn.cursor()
@@ -92,9 +111,10 @@ class VideoCapture:
         :return: None
         """
         # Create a VideoWriter object to save the video
-        fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+        fourcc = cv2.VideoWriter_fourcc('F', 'M', 'P', '4')
+        size, fps = map(int, (self.cap.get(3), self.cap.get(4))), self.cap.get(5)
         self.video_path = f"{VIDEO_CLIPS_DIR_PATH}/{self.user.user_id}/{self.user.name}.mp4"
-        self.video_writer = cv2.VideoWriter(self.video_path, fourcc, 60.0, (640, 480))
+        self.video_writer = cv2.VideoWriter(self.video_path, fourcc, fps, (640, 480))
 
         for _ in range(duration):
             ret, frame = self.cap.read()
@@ -102,12 +122,16 @@ class VideoCapture:
             faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
             accuracy = len(faces)
 
+            if not ret:
+                raise WebcamError("Error in capturing frame")
+
             if accuracy > self.max_accuracy:
                 self.max_accuracy = accuracy
                 self.best_frame = frame.copy()
 
             cv2.imshow('User Registration', frame)
-            cv2.waitKey(20)
+            self.video_writer.write(frame)
+            cv2.waitKey(1)
 
     def create_user_folders(self):
         user_video_folder = os.path.join(VIDEO_CLIPS_DIR_PATH, str(self.user.user_id))
@@ -127,7 +151,7 @@ class VideoCapture:
         :return: None
         """
         self.cap.release()
-        self.video_writer
+        self.video_writer.release()
         cv2.destroyAllWindows()
 
 
@@ -140,7 +164,7 @@ def main():
     video_capture.capture_frames(duration=150)
     print('Took', time() - s_time, 'secs')
 
-    user.save_profile_image(video_capture.best_frame)
+    user.set_profile_image(video_capture.best_frame)
 
     video_capture.release()
 
