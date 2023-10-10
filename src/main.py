@@ -22,10 +22,11 @@ class AttendanceSystem:
         cursor = conn.cursor()
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS users
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            name TEXT NOT NULL, 
-            profile_image BLOB)
+            CREATE TABLE IF NOT EXISTS users(
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                name TEXT NOT NULL, 
+                profile_image BLOB
+            )
             """
         )
         conn.commit()
@@ -70,7 +71,7 @@ class AttendanceSystem:
             print('Took', time() - s_time, 'secs')
 
             # Save the user's profile image
-            user.save_profile_image(video_capture.best_frame)
+            user.set_profile_image(video_capture.best_frame)
 
             # Release video feed and cleanup
             video_capture.release()
